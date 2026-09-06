@@ -1,0 +1,60 @@
+SafeVault Security Review
+=========================
+
+Scope
+-----
+Reviewed the SafeVault request handlers, input validation, SQLite repository,
+static form, and NUnit tests for SQL injection and cross-site scripting (XSS).
+
+Findings
+--------
+1. SQL injection
+   No vulnerable string-concatenated SQL was found in the application code.
+   SQL statements are fixed command strings and user values are supplied with
+   named parameters such as $username, $email, and $passwordHash.
+
+2. XSS
+   No reflected or stored HTML output sink was found. User input is not written
+   into HTML, JavaScript, or an unsafe HTML helper. The username validator also
+   rejects markup and script characters because it allows only letters, digits,
+   dots, underscores, and hyphens. Email input is validated with MailAddress.
+
+Security controls verified
+--------------------------
+- User input is validated before it reaches the database.
+- SQLite INSERT and SELECT statements use parameterized values.
+- Passwords are stored as bcrypt hashes, never as plaintext.
+- Authentication uses a secure cookie session.
+- The /admin route requires the admin role.
+- API authentication failures return 401 and authorization failures return 403.
+
+Tests
+-----
+- SQL injection-looking usernames are rejected by InputValidator.
+- XSS script payloads are rejected by InputValidator.
+- A SQL payload inserted through UserRepository remains data and does not drop
+  the Users table, proving that parameters are being used.
+- Invalid login returns 401.
+- Anonymous access to /admin returns 401.
+- A regular user accessing /admin returns 403.
+- An admin accessing /admin returns 200.
+
+Verification
+------------
+Command:
+dotnet test SafeVault/SafeVault/Tests/SafeVault.Tests.csproj
+
+Result: 7 tests passed, 0 failed.
+
+Copilot assistance
+------------------
+Copilot inspected the query and output paths, identified that the existing
+implementation already used parameterized SQL and input allow-list validation,
+added focused attack tests, and documented the verified controls and results.
+
+Future consideration
+--------------------
+If SafeVault later renders user-generated content, encode it for the specific
+output context (HTML, attribute, JavaScript, or URL) and add endpoint-level
+output tests. If browser form sessions are expanded, enable antiforgery tokens
+for state-changing form requests rather than disabling antiforgery metadata.
